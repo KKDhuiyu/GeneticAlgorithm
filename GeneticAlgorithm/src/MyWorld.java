@@ -1,7 +1,13 @@
 import cosc343.assig2.World;
 import cosc343.assig2.Creature;
 import java.util.*;
-
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.JFreeChart;
+import org.jfree.ui.ApplicationFrame;
+import org.jfree.ui.RefineryUtilities;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.data.category.DefaultCategoryDataset;
 /**
 * The MyWorld extends the cosc343 assignment 2 World.  Here you can set 
 * some variables that control the simulations and override functions that
@@ -19,11 +25,11 @@ public class MyWorld extends World {
    * execute.
   */
     private final int _numTurns = 100;
-    private final int _numGenerations = 500;
+    private final int _numGenerations = 2000;
     private static final double uniformRate = 0.5;
     private static final double mutationRate = 0.0015;
-    private static final boolean elitism = true;
-
+private static int generationsCount=2000;
+private static ArrayList<Integer> averageFitnessList= new ArrayList<>();
  Random rand = new Random();
   
   /* Constructor.  
@@ -157,13 +163,7 @@ public class MyWorld extends World {
      System.out.println("Simulation stats:");
      System.out.println("  Survivors    : " + nSurvivors + " out of " + numCreatures);
      System.out.println("  Avg life time: " + avgLifeTime + " turns");
-     for(int i=0;i<numCreatures; i++) {
-         System.out.print(old_population[i].getGene(0));
-     }
-     System.out.println();
-     for(int i=0;i<numCreatures; i++) {
-         System.out.print(old_population[i].getGene(1));
-     }
+
 
      
      // Having some way of measuring the fitness, you should implement a proper
@@ -174,11 +174,23 @@ public class MyWorld extends World {
      // new generation.
      int [] populationFitScore= calculateFitness(old_population);
      int averageScore= getAverageFitness(populationFitScore);
-     
+     int medianScore= median(populationFitScore);
+     averageFitnessList.add(averageScore);
+     System.out.println("  Avg fitness: " + averageScore );
+     generationsCount--;
+     if(generationsCount==0){ // draw the graph ate the end
+         LineChart_AWT chart = new LineChart_AWT(
+         "Average Fitness" ,
+         "Average Fitness vs Generations");
+
+      chart.pack( );
+      RefineryUtilities.centerFrameOnScreen( chart );
+      chart.setVisible( true );
+     }
      ArrayList<MyCreature> copy = new ArrayList<>();
      
      for(int i=numCreatures-1;i>=0; i--) {
-         if(populationFitScore[i]>=averageScore){
+         if(populationFitScore[i]>=medianScore){ // elitism
             copy.add(old_population[i]);
          }
      }
@@ -213,16 +225,13 @@ public class MyWorld extends World {
             int score=0;
             MyCreature individual = population[i];
             if(individual.isDead()){
-                //score-=50*(100-individual.timeOfDeath());
+                score-=20*(100-individual.timeOfDeath());
                 if(individual.isSick()){
-                    //score-=100*(100-individual.timeOfDeath());
+                    score-=20*(100-individual.timeOfDeath());
                 }
-                score+= individual.getEnergy()*individual.timeOfDeath();
+                score+= individual.getEnergy()*(individual.timeOfDeath()-5);
             }else{
-                 score+= individual.getEnergy()*100;
-                 if(individual.isSick()){
-                   // score-=20*(100-individual.timeOfDeath());
-                }
+                 score+= (5+individual.getEnergy())*100;
             }
             fitness[i]=score;
         }
@@ -248,7 +257,7 @@ public class MyWorld extends World {
         for (int i = 0; i < indiv.size(); i++) {
             if (Math.random() <= mutationRate) {
                 // Create random gene
-                int gene =  rand.nextInt(5);
+                int gene =  rand.nextInt(60)-10;
                 indiv.setGene(i, gene);
             }
         }
@@ -261,4 +270,39 @@ public class MyWorld extends World {
          }
         return score/fitness.length;
     }
+   
+    public static int median(int[] m) {
+    int middle = m.length/2;
+    if (m.length%2 == 1) {
+        return m[middle];
+    } else {
+        return (m[middle-1] + m[middle]) / 2;
+    }
+}
+    public class LineChart_AWT extends ApplicationFrame {
+
+   public LineChart_AWT( String applicationTitle , String chartTitle ) {
+      super(applicationTitle);
+      JFreeChart lineChart = ChartFactory.createLineChart(
+         chartTitle,
+         "Generations","Average fitness",
+         createDataset(),
+         PlotOrientation.VERTICAL,
+         true,true,false);
+         
+      ChartPanel chartPanel = new ChartPanel( lineChart );
+      chartPanel.setPreferredSize( new java.awt.Dimension( 560 , 367 ) );
+      setContentPane( chartPanel );
+   }
+
+   private DefaultCategoryDataset createDataset( ) {
+      DefaultCategoryDataset dataset = new DefaultCategoryDataset( );
+      for(int i=0;i<averageFitnessList.size();i++){
+          dataset.addValue(averageFitnessList.get(i), "fitness", ""+i);
+      }
+      
+      return dataset;
+   }
+   
+}
 }
